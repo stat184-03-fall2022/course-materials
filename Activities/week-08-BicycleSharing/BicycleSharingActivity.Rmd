@@ -1,0 +1,340 @@
+---
+title: "Activity: Bicycle Sharing"
+author: "Matt Beckman"
+date: "Updated 2021 March"
+output: 
+    html_notebook:
+    fig_height: 6
+    fig_width: 10
+---
+
+
+```{r}
+# clean up environment
+rm(list = ls())
+
+# load packages: `tidyverse`, `lubridate` (if others are needed, load them here)
+library(mosaic)
+library(tidyverse)
+library(lubridate)
+
+# packages loaded for A.5 leaflet graphic
+library(devtools)
+library(leaflet)
+
+```
+
+
+
+# Set Up
+
+```{r}
+# Load the data sets into our RStudio environment as described in the text
+Stations <- readr::read_csv("https://mdbeckman.github.io/dcSupplement/data/DC-Stations.csv")
+
+### May need to download file and load it locally
+data_site <- "https://mdbeckman.github.io/dcSupplement/data/Trips-History-Data-2014-Q4-Small.rds"
+# data_site <- "https://mdbeckman.github.io/dcSupplement/data/Trips-History-Data-2014-Q4.rds"    # full data with 600k rows
+
+
+Trips <- readRDS(gzcon(url(data_site)))
+
+# Trips <- readRDS("2014-Q4-Trips-History-Data-Small.rds")
+# Trips <- readRDS("2014-Q4-Trips-History-Data.rds")
+
+
+# Inspect the data tables
+str(Stations)
+str(Trips)
+
+```
+
+##### Check out times.
+
+The following plot uses the POSIXct data type associated with check-out times (variable: `sdate`).
+
+```{r}
+Trips %>%
+  ggplot(aes(x = sdate)) + 
+  geom_density(fill = "gray", color = NA)
+```
+
+
+# A.1 How Long?
+
+The following box & whisker plot shows the distribution of rental duration by client type with outliers removed.
+
+```{r}
+# select the variables of use for the activity & create a duration variable
+Trips <- 
+  Trips %>%
+  mutate(durMin = as.numeric(edate - sdate)/60)  # trip duration in minutes
+
+# inspect data table; discern units of "durMinutes"
+head(Trips)
+
+# boxplot
+Trips %>%
+  ggplot(aes(x = client, y = durMin)) + 
+  geom_boxplot() + 
+  ylim(0, 90) +           # restrict plot to 90 minutes or less
+  ylab("Rental Duration (min)") + 
+  xlab("Client Type")
+```
+
+
+# A.2 When are bikes used?
+
+Explore bike use for the following: 
+
+* day of the year (1 to 365)
+* day of the week (Sunday to Saturday)
+* hour of the day (0 to 24)
+* minute in the hour (0 to 60)
+
+We first need to create these variables in the `Trips` data table using a `mutate()` statement.
+
+```{r}
+Trips <- 
+  Trips %>%
+  mutate(dayOfYear = lubridate::yday(sdate), 
+         dayOfWeek = lubridate::wday(sdate), 
+         dayOfWeekLabel = lubridate::wday(sdate, label = TRUE), 
+         hourOfDay = lubridate::hour(sdate), 
+         minuteOfHour = lubridate::minute(sdate))
+
+# head(Trips)     # Inspect data table (commented out for now)
+```
+
+##### Day of the year (1 to 365)
+
+The data suggest that usage declines toward the end of the year.  (Note: the data set is said to include "rental history over the last quarter of 2014" so there is no information in this data set for January through September)
+```{r}
+Trips %>%
+  ggplot(aes(x = dayOfYear)) + 
+  geom_density(fill = "gray", adjust = 2)
+```
+
+##### Day of the week (Sunday to Saturday)
+
+We see usage is quite consistent across the weekdays, and then a bit reduced on weekends.
+
+```{r}
+Trips %>%
+  ggplot(aes(x = dayOfWeek)) + 
+  geom_density(fill = "gray", adjust = 2)
+```
+
+Density isn't wrong, but it's a little goofy here.  Actually, it's pretty easy to turn the day of week from numeric to the names as we know them with `dayOfWeekLabel = lubridate::wday(sdate, label = TRUE)` so let's do that and make it a bar chart to see how that looks.  
+
+```{r}
+Trips %>%
+  ggplot(aes(x = dayOfWeekLabel)) + 
+  geom_bar(fill = "gray") 
+```
+
+
+
+##### Hour of the day (0 to 24)
+
+Few bicycles are checked out before 5am, and then we see usage spike near 8am and 5pm in concert with rush hour commuting.
+
+```{r}
+Trips %>%
+  ggplot(aes(x = hourOfDay)) + 
+  geom_density(fill = "gray", adjust = 2)
+```
+
+##### Minute in the hour (0 to 60)
+
+Usage appears to drop near the top of the hour. 
+
+```{r}
+Trips %>%
+  ggplot(aes(x = minuteOfHour)) + 
+  geom_density(fill = "gray", adjust = 2)
+```
+
+
+##### Group the bike rentals by hour, weekday, & client type
+
+We can see that the rush hour spikes (8am & 5pm) are much more pronounced among registered users on weekdays.
+
+```{r}
+Trips %>%
+  group_by(client, dayOfWeek, hourOfDay) %>%
+  summarise(count = n()) %>%
+  ggplot(aes(x = hourOfDay, y = count)) + 
+  geom_line(aes(group = dayOfWeek, color = as.character(dayOfWeek))) + 
+  facet_wrap( ~ client)
+```
+
+
+##### Construct a similar plot using density rather than frequency
+
+The density appears to present the information in a more "relative" than "absolute" way.  The density could be misinterpreted to suggest that bicycle usage among casual users is higher than registered users.
+
+```{r}
+Trips %>%
+  ggplot(aes(x = hourOfDay)) + 
+  geom_density(aes(group = dayOfWeek, color = as.character(dayOfWeek))) + 
+  facet_wrap( ~ client)
+```
+
+
+# A.3 How Far?
+
+We want to calculate the distance between stations using the `haversine()` function.
+
+```{r}
+source("https://mdbeckman.github.io/dcSupplement/R/haversine.R")
+```
+
+We want to create a table where a case is a *pair* of stations.  We first need to create tables that represent the starting station and another table that represents the ending station in each pair.  Since we ultimately want to join this information with the `Trips` data, we use the variable names `sstation` and `estation` since those represent the starting and ending stations we will want to match from that data table.
+
+```{r}
+# inspect the Stations data
+head(Stations)
+
+# create a working copy of the data & rename to identify starting Station
+Simple <- 
+  Stations %>%
+  rename(sstation = name)
+
+# create another copy and rename variables for use as the ending station
+Simple2 <- 
+  Simple %>%
+  rename(estation = sstation, lat2 = lat, long2 = long)
+
+# inspect Simple & Simple2
+head(Simple)
+head(Simple2)
+```
+
+
+In order to create pairs matching every single beginning station to every single ending station, we need a type of join called a Cartesian product of our startStation & endStation data tables.  The book explains that Cartesian products can be dangerous if the tables are too large, so you need to think before you do a join like this.  With 347 cases in each data table, the Cartesian product results in  $347 * 347 = 120409$ cases.  This is certainly a manageable size, so we'll proceed.
+
+```{r}
+# join the starting and ending data tables together
+StationPairs <- 
+  merge(Simple, Simple2, by = NULL)
+
+# inspect station pairs data table
+head(StationPairs)
+
+# compute distances with haversine()
+PairDistances <- 
+  StationPairs %>%
+  transmute(sstation, estation, distance = haversine(lat, long, lat2, long2)) %>%
+  select(sstation, estation, distance)
+
+# inspect PairDistances
+head(PairDistances)
+
+```
+
+```{r}
+PairDistances %>%
+  ggplot(aes(x = distance)) + 
+  geom_density(fill = "gray")
+
+```
+
+The book says that "one end of Washington DC to the other is about 14.1 miles" so we need to investigate a bit further since our density plot of station distances doesn't seem to reflect that.  We see below that the furthest stations are about 37.03506 (units) apart.  We might first suspect (correctly) that the "units" produced by the `haversine()` function are kilometers and not miles.  Still, 14.1 miles is less than 23 km, but our largest possible distance pair is 37.03506 km (23 miles) from "Needwood Rd & Eagles Head Ct" to "Prince St & Union St".  A quick investigation using [Google Maps](https://goo.gl/maps/c2gecqmEeaP2) reveals a walking distance of about 25 miles between those locations.  Walking distance can come close to the true distance "as the crow flies" but a few minor detours would be required in order to walk on paved paths, cross the Potomac River, etc.  It looks like the distances have been calculated correctly, but the "hint" in the text book was perhaps misleading since "one end to the other" isn't necessarily the diameter between the most extreme points (i.e. corner to corner).
+
+```{r}
+PairDistances %>%
+  arrange(desc(distance)) %>%
+  head()
+```
+
+
+
+Next, we want to join the `PairDistances` table with `Trips` to calculate the start-to-end distance of each trip. 
+
+
+```{r}
+RideDistances <- 
+  Trips %>%
+  inner_join(PairDistances, by = c("sstation", "estation"))
+```
+
+The distances of the actual rides tend to be only a few kilometers or less.  Most rides are between stations that are fewer than about 5 kilometers apart.  Of course, the ride itself may be longer, but the stations aren't very far apart in absolute distance.  Most of the station pairs are farther apart than 5 km, but people don't tend to use the bicycle share program to travel that far since other transportation would probably be much more efficient (and possibly safer?) as travel distance increases.  
+
+Note: for the purpose of the assignment, it's fine to just show the plot of ride distances without adding the layer to show distance between pairs of stations on the same plot.  
+
+```{r}
+RideDistances %>%
+  ggplot(aes(x = distance)) + 
+  geom_density(fill = "gray") + 
+  geom_density(data = PairDistances, aes(x = distance), fill = "purple", alpha = 0.1)
+```
+
+
+# A.4 Mapping the Stations
+
+```{r}
+stationMap <- 
+  leaflet(Stations) %>%
+  addTiles() %>%
+  addCircleMarkers(radius = 2, color = "red") %>%
+  setView(-77.04, 38.9, zoom = 12) 
+
+stationMap
+```
+
+
+# A.5 Long-distance stations (Extra Credit)
+
+Based on the map, the median distance traveled from each station appears to be negatively correlated with station density.  In other words, when there are many stations in close proximity the median ride distance tends to be shorter by comparison to areas of the city where the ride stations are more sparse.
+
+```{r}
+StationPairMap <- 
+  RideDistances %>%
+  rename(name = sstation) %>% # rename to facilitate join operation
+  left_join(Stations) %>%     # adds lat & long
+  transmute(name, lat, long, distProxy = distance * 1000/3) %>%
+  group_by(name, lat, long) %>%
+  summarise(medDist = median(distProxy))
+
+head(StationPairMap)
+
+distanceMap <-
+  leaflet(StationPairMap) %>%
+  addTiles() %>%
+  addCircleMarkers(radius = 2, color = "red") %>%
+  addCircles(radius = ~ medDist, color = "blue", opacity = 0.0001) %>%
+  setView(-77.04, 38.9, zoom = 12)
+
+distanceMap
+
+```
+
+
+Based on the map, the median distance traveled from each station appears to be negatively correlated with station density.  In other words, when there are many stations in close proximity the median ride distance tends to be shorter by comparison to areas of the city where the ride stations are more sparse.  
+
+With a small modification (i.e. `addCircleMarkers(radius = 2, color = "red", opacity = ~ freqUsage)`), we can darken the location marker of each bicycle share station to reflect the frequency of it's use.  With this information included, the plot below shows that near the city center rides tend to be shorter distances and the stations are utilized much more frequently.  By contrast, near the fringes of the city rides tend to be longer distances and the stations are utilized less frequently.
+
+```{r}
+StationPairMap <- 
+  RideDistances %>%
+  rename(name = sstation) %>% # rename to facilitate join operation
+  left_join(Stations) %>%     # adds lat & long
+  transmute(name, lat, long, distProxy = distance * 1000/3) %>%
+  group_by(name, lat, long) %>%
+  summarise(medDist = median(distProxy), freqUsage = 0.0002 * n())
+
+freqMap <-
+  leaflet(StationPairMap) %>%
+  addTiles() %>%
+  addCircleMarkers(radius = 2, color = "red", opacity = ~ freqUsage) %>%
+  addCircles(radius = ~ medDist, color = "blue", opacity = 0.0001) %>%
+  setView(-77.04, 38.9, zoom = 12)
+
+freqMap
+
+```
+
+
+
+

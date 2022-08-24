@@ -1,0 +1,261 @@
+---
+title: "Data Scraping"
+author: ""
+date: "Oct 26, 2018"
+output: slidy_presentation
+---
+
+```{r include=FALSE}
+library(tidyverse)
+library(rvest)
+
+# library(dplyr)
+# library(ggplot2)
+# library(printr)
+# library(mosaic)
+# library(tidyr)
+
+knitr::opts_chunk$set(tidy=FALSE, message=FALSE, warning=FALSE)
+options(width = 80)
+```
+
+
+## Announcements
+
+- Midterm recap
+- Final Project Update 
+    - Canvas drop boxes
+    - Optional class feedback 
+        - 1-2 per week
+        - first come first served
+        - 5 minutes to talk about project (progress, problems, etc)
+        - 5 minutes feedback from class & instructors
+    - Optional peer reviews in Canvas
+
+
+## Chapters 12 & 15 Fly-by
+
+#### Chapter 12 
+
+- `rank()` is pretty useful 
+- `row_number()` is too
+
+#### Chapter 15
+
+- There are a ton of ways to get data into R
+    - CSV (comma-separated-values) is a really common format
+        - several functions read CSV files into R, but they are not all created equal... (DC likes `read.file()`)
+        - `file.choose()`  It's interactive so you can't use it in .Rmd, but it's a great way to get file paths
+    - Lots of software export to CSV, but R can handle lots of proprietary formats too (see `foreign` package)
+    - R can query relational databases like MS Access, Oracle, SAP, mySQL, etc (see `rodbc` package and others)
+    - Scraping the web (we'll come back to that)
+
+## A word about data structures... 
+
+- R accommodates many different sorts of data structures
+- One natural way to differentiate many of them is to consider
+    - dimensionality (e.g. 1d, 2d, ... N-d)
+    - heterogeneity (e.g., can elements have different types within the object?)
+- R doesn't have any 0d types... scalar numbers or strings are treated as vectors with length 1.
+- The `str()` function is a great way to learn about the structure of an object in R
+- The 5 following data structures are among the most common (but there are others):
+
+|               | Homogenous        | Heterogeneous  | 
+|--------------:|:-----------------:|:--------------:|
+| 1-dimensional | **Atomic vector** | *List*         |
+| 2-dimensional | Matrix            | **Data Frame** |
+| N-dimensional | Array             |                | 
+
+
+- variables can be classified with different types as well
+    - factors
+    - character vectors
+    - numeric
+    - character
+    - POSIXct (see `lubridate` package)
+- mixed variables are automatically coerced to the most flexible type:
+    - logical (e.g. `TRUE`; `FASLE`) is **least** flexible
+    - integer (e.g., `-20`, `0`, `406`)
+    - double (e.g. `3.14159`, `-2.17`, `1`, `0`)
+    - character (e.g. `as;lkne`, `3.14159`, `TRUE`) is the **most** flexible type
+- a "factor" is an important type of vector that may contain only predefined values, and is used to store categorical data
+- by default, R uses something called "POSIXct" for dates (see `lubridate` package)
+
+
+
+## Scraping Pole Vault Records from Wikipedia
+
+Let's say we want to scrape pole vault World Records from Wikipedia...
+
+
+
+## What's a pole vault?
+
+It's an event in track and field competitions in which the athlete attempts the following:   
+
+- Run as fast as possible while carrying an awkward object  
+- Jam a pole into a hole in the ground  
+- Use the pole to throw self as high as possible into air  
+- Land safely  
+
+
+#### It looks like this when things go well...
+
+
+<iframe src="https://hips.hearstapps.com/esq.h-cdn.co/assets/16/33/1471355299-brazil1.gif?resize=320:*" width="480" height="377" frameBorder="0" class="giphy-embed" allowFullScreen></iframe><p><a href="https://hips.hearstapps.com/esq.h-cdn.co/assets/16/33/1471355299-brazil1.gif?resize=320:"> https://hips.hearstapps.com</a></p>
+
+#### It looks like this when they don't...
+
+<iframe src="https://giphy.com/embed/11iCYXupyFCjCw" width="480" height="377" frameBorder="0" class="giphy-embed" allowFullScreen></iframe><p><a href="https://giphy.com/gifs/fail-pole-vault-11iCYXupyFCjCw">via GIPHY</a></p>
+
+
+
+## Steps to scrape HTML data
+
+1. Locate webpage
+
+2. Identify data table(s) to scrape
+
+3. Right click on the table you want, choose "Inspect Element"
+
+4. Roll cursor over the HTML tags (even if you don't understand them) until you see the whole table that you want appear highlighted.  Tip: look for `<table>` or `</table>`
+
+5. Right click the highlighted row >> Copy >> XPath
+
+6. Edit the R code chunk below to paste the XPath with SINGLE quotes around it, and URL with quotes around it as shown.
+
+7. Execute the code chunk!
+
+```
+library("rvest")
+
+page_url <- "https://en.wikipedia.org/wiki/Mile_run_world_record_progression"
+XPATH <- '//*[@id="mw-content-text"]/div/table'
+
+table_list <- 
+  page_url %>%
+  read_html() %>%
+  html_nodes(xpath = XPATH) %>%
+  html_table(fill = TRUE)
+
+```
+
+XPATH help: [Instructions on getting the xpath](http://www.r-bloggers.com/using-rvest-to-scrape-an-html-table/) to an element on a web page (in Chrome).
+
+
+
+## Scraping Pole Vault Records from Wikipedia
+
+Let's say we want to scrape pole vault world records from Wikipedia...
+
+Here's the page:
+<https://en.wikipedia.org/wiki/Men%27s_pole_vault_world_record_progression>
+
+
+## Scraping Pole Vault Records from Wikipedia
+
+Using our handy template, we replace the page_url & XPATH
+
+
+```{r}
+page <- "https://en.wikipedia.org/wiki/Men%27s_pole_vault_world_record_progression"
+XPATH <- '//*[@id="mw-content-text"]/div/table'
+
+table_list <- page %>%
+  read_html() %>%
+  html_nodes(xpath = XPATH) %>%
+  html_table(fill = TRUE)
+
+str(table_list)
+
+```
+
+## Scraping Mile Run Records from Wikipedia
+
+```{r}
+# Look at the structure (look for how many tables are in the list; verify they are "data.frame" format)
+str(table_list)
+
+# Inspect the first table in the list (IAAF Men from the Wikipedia Page)
+IAAFrecords <- table_list[[1]]
+tail(IAAFrecords)
+```
+
+
+
+
+## Penn State Football Receiving Statistics
+
+1. Google Penn State Football Statistics: <http://bfy.tw/88gl>
+
+2. Identify a data table to scrape (for example, "receiving statistics")
+
+3. Right click on the table you want, choose "Inspect Element"
+
+4. Roll cursor over the HTML code (even if you don't understand it) until you see the whole table that you want appear highlighted.  Click on the row that highlights the whole table.
+
+5. Right click the highlighted row >> Copy >> XPath
+
+6. Edit the R code chunk below to paste the XPath with SINGLE quotes around it, and URL with quotes around it as shown.
+
+7. Execute the code chunk!
+
+```
+library("rvest")
+url <- "http://www.espn.com/college-football/team/stats/_/id/213/penn-state-nittany-lions"
+XPATH <- '//*[@id="my-players-table"]/div[4]/div/table'
+
+Table1 <- url %>%
+  html() %>%
+  html_nodes(xpath='XPATH') %>%
+  html_table()
+```
+```
+Table1[[1]]
+```
+
+## Penn State Football Receiving Statistics
+
+
+```{r}
+url <- "http://www.espn.com/college-football/team/stats/_/id/213/penn-state-nittany-lions"
+XPATH <- '//*[@id="my-players-table"]/div/div/table'  # all player stat tables
+# XPATH <- '//*[@id="my-players-table"]/div[4]/div/table' # just the receiving table
+
+PlayerStats <- url %>%
+  read_html(header = TRUE) %>%
+  html_nodes(xpath=XPATH) %>%
+  html_table(fill = TRUE)
+```
+
+
+```{r}
+# R stores the result as a "list" object, so the double square brackets select the first 
+#    element of the list, and we store it at a data table called FootballStatsRaw
+
+ReceivingRaw <- PlayerStats[[3]]
+
+# Inspect the Data Table
+ReceivingRaw
+
+# Tidy up the data table & rename variables
+ReceivingStats <- 
+  ReceivingRaw %>%  
+  rename(name = X1, receptions = X2, total_yds = X3, avg_yds = X4, longest = X5, touchdowns = X6) %>%
+  filter(row_number() > 2, name != "Totals")   
+  
+# Inspect FootballStatsClean
+ReceivingStats
+```
+
+
+## Homework
+
+- DC Ch 12 Exercises: 12.1, 12.2     
+- DC Ch 15 Exercises: 15.1 (skip Armistice Day), 15.2 (copy/paste this for d: "£100" )        
+- DC chapter 14 reading quiz on Canvas    
+- Activity: Scraping Nuclear Reactors
+- Choose final project data & submit on Canvas for approval
+
+## Activity: Scraping Nuclear Reactors
+

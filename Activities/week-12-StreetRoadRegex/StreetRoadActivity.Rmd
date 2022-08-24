@@ -1,0 +1,293 @@
+---
+title: "Activity: Street or Road?"
+author: "Matthew Beckman"
+date: ""
+output: 
+  html_notebook:
+    fig_height: 6
+    fig_width: 10
+---
+
+```{r include=FALSE}
+rm(list = ls()) # clean up 
+
+library(tidyverse)
+
+```
+
+
+
+# Assignment Remarks: 
+
+Two data sets are provided.  One includes 15,000 street addresses of registered voters in Wake County, North Carolina.  The other includes over 900,000 street addresses of Medicare Service Providers.  You are expected to use BOTH data sets during the activity.
+
+Note: There's nothing to do in the "For the professional..." section at the very end except to be impressed.
+
+# Activity
+
+People's addresses involve streets, lanes, courts, avenues, and so on.  How many such road-related words are in common use?
+
+In general, the steps to automate this sort of task might be summarized as follows:
+
+1. In everyday language, describe a patter that you think will identify the information that you're looking for
+2. Translate (1) into a regular expression
+3. Filter to retain the cases that match the expression... hint: `filter()` and `grepl()` are useful for this
+4. Filter to retain the cases that do not match the expression
+5. Examine the results of (3) and (4) to identify shortcomings in your pattern matching algorithm
+6. Improve or extend the pattern to deal with the mistaken cases
+7. Repeat (1) through (6) until satisfied
+8. Put extraction parenthesis around the parts of the regular expression that contain the information you want
+
+
+### Resources
+
+```{r}
+# 15000 street addresses of registered voters in Wake County, North Carolina
+AddressesVoters <- read_csv("https://mdbeckman.github.io/dcSupplement/data/street-addresses.csv")
+# AddressesVoters <- read_csv("street-addresses.csv")    # local copy
+
+# 900,000 street addresses of Medicare Service Providers
+download.file(url = "https://mdbeckman.github.io/dcSupplement/data/CMS_ProvidersSimple.rds", 
+              destfile = "CMS_ProvidersSimple.rds")
+AddressesMSP <- readRDS("CMS_ProvidersSimple.rds")
+
+```
+
+```{r}
+# matching addresses
+inner_join(AddressesMSP, AddressesVoters) %>% glimpse()
+
+# combine sources
+AddressesVoters <- 
+  AddressesVoters %>%
+  mutate(source = "Wake County Voters")
+
+AddressesMSP <- 
+  AddressesMSP %>% 
+  mutate(source = "Medicare Service Providers")
+
+
+AddressesTotal <- bind_rows(AddressesVoters, AddressesMSP)
+
+head(AddressesTotal)
+tail(AddressesTotal)
+
+```
+
+
+
+### Solved Example
+
+Suppose we want to extract the PO Box number from addresses of the registered voters in Wake County, North Carolina.
+
+```{r}
+# the address data
+Addresses <- read_csv("https://mdbeckman.github.io/dcSupplement/data/street-addresses.csv")
+
+# sample a few dozen cases
+Sample <- 
+  Addresses %>%
+  sample_n(size = 50)
+```
+
+1. The PO Box cases tend to have a substring "PO"
+2. the regular expression for "PO" is simply `"PO"`
+3. Find some cases that match:
+
+```{r}
+Matches <- 
+  Sample %>%
+  filter(grepl("PO", address))
+```
+
+4. Find some cases that don't match: 
+
+```{r}
+Dont <- 
+  Sample %>%
+  filter( !grepl("PO", address))
+```
+
+5. Find cases of `Matches` that we don't want to match, and find cases of `Dont` that we should have matched.
+
+```{r}
+# Inspect Matches
+head(Matches)
+
+# Inspect Dont
+head(Dont)
+```
+
+6. Maybe "BOX" might be a better pattern, so we'll try that instead.
+
+```{r}
+# Pattern to locate
+pattern <- "BOX\\s+(\\d+)"
+
+# Inspect Matches
+Matches <- 
+  Sample %>%
+  filter(grepl(pattern, address))
+
+Matches
+
+# Inspect Dont
+Dont <- 
+  Sample %>%
+  filter( !grepl(pattern, address))
+
+Dont
+```
+
+We'll now use `tidyr::extract()` to pull the part of the pattern identified by the extraction parenthesis.
+
+```{r}
+BoxNumbers <- 
+  Sample %>%
+  filter(grepl(pattern, address)) %>%
+  tidyr::extract(address, into = "boxnum", regex = pattern)
+
+head(BoxNumbers, 10)
+```
+
+### Back to the Streets
+
+We'll go line-by-line explaining the following code chunk:
+```
+pattern <- "(ST|RD|ROAD)"  
+
+LeftOvers <-
+  Addresses %>%
+  filter( ! grepl(pattern, address),
+          ! grepl("\\sAPT|UNIT\\s[\\d]+$", address),
+          ! grepl("BOX|BX", address))
+```
+
+
+This is the regular expression we want to extract (e.g. ST, RD, ROAD):
+```
+pattern <- "(ST|RD|ROAD)"  
+```
+
+Assign all remaining non-matches to data set called called `LeftOvers`:
+```
+LeftOvers <-
+```
+
+Start with the `Addresses` data set:
+```
+  Addresses %>%
+```
+
+Remove the cases that we want to match:
+```
+  filter( ! grepl(pattern, address),
+```
+
+Remove some known cases (apartments, etc) that we know we don't want:
+```
+          ! grepl("\\sAPT|UNIT\\s[\\d]+$", address),
+```
+
+Remove some more known cases (PO Boxes) that we know we don't want:
+```
+          ! grepl("BOX|BX", address)) 
+```
+
+
+
+
+Here's the whole thing together: 
+```{r}
+pattern <- "(ST|RD|ROAD)"  
+
+LeftOvers <-
+  AddressesTotal %>%
+  filter( !grepl(pattern, address),
+          !grepl("\\sAPT|UNIT\\s[\\d]+$", address),
+          !grepl("BOX|BX", address))
+
+# Inspect the result
+head(LeftOvers, 10)
+```
+
+
+### Your Turn: Explain your method & present result (use `ggplot()`)
+
+Iterate the method to select more of the desired street & road identifiers.  
+
+```{r}
+# regular expression we want to extract including several different street & road abbreviations
+pattern <- "(AVENUE|AVE|BLVD|BLV|CIRCLE|CIR|COURT|CT|DRIVE|DR|LN|LANE|LOOP|PATH|PL|PLACE|PKWY|RD|ROAD|RUN|ST|STREET|TERRACE|TRAIL|WAY)"  
+
+LeftOvers <-               # reduced data set of non-matches will be called `LeftOvers`
+  AddressesTotal %>%            # start with all the addresses
+  filter( !grepl(pattern, address),                    # remove the current pattern we like
+          !grepl("\\sAPT|UNIT\\s[\\d]+$", address),    # remove APT & UNIT addresses we don't want
+          !grepl("BOX|BX", address),                   # remove PO BOX addresses we don't want
+          !grepl("HALL", address))                     # remove HALL addresses we don't want
+
+head(LeftOvers, 30)            # inspect the LeftOvers data
+```
+
+Now that we've reached a point where there isn't too much of value left in the sample of `LeftOvers` from the `Address` data, we'll stop here.  Next, we filter to just include the matches that we want, and then show the results as a sorted table and a plot for each address source.
+
+*remarks comparing and contrasting the distribution associated with each source will vary--depending in part on the specific street endings included in the analysis.*
+
+```{r}
+# regular expression we want to extract including several different street & road abbreviations
+pattern <- "(AVENUE|AVE|BLVD|BLV|CIRCLE|CIR|COURT|CT|DRIVE|DR|LN|LANE|LOOP|PATH|PL|PLACE|PKWY|RD|ROAD|RUN|ST|STREET|TERRACE|TRAIL|WAY)"  
+
+# Set of matches extracted
+RoadNames <-
+  AddressesTotal %>%
+  filter(grepl(pattern, address)) %>%
+  tidyr::extract(address, into = "name", regex = pattern)
+
+# frequency table
+RoadNameFrequency <- 
+  RoadNames %>%
+  group_by(name, source) %>%
+  summarise(count = n()) %>%
+  mutate(name = reorder(name, desc(count))) %>%
+  arrange(desc(count))
+```
+
+```{r}
+# Bar chart of frequency
+RoadNameFrequency %>%
+  filter(grepl(pattern = "Voter", x = source)) %>%
+  ggplot(aes(x = reorder(name, desc(count)), y = count)) + 
+  geom_bar(stat = "identity") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  ggtitle("Street Endings among Wake County Voter Addresses") +
+  xlab("Street Ending") + 
+  ylab("Frequency")
+
+# Bar chart of frequency
+RoadNameFrequency %>%
+  filter(grepl(pattern = "Medicare", x = source)) %>%
+  ggplot(aes(x = reorder(name, desc(count)), y = count)) + 
+  geom_bar(stat = "identity") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  ggtitle("Street Endings among Medicare Service Provider Addresses") +
+  xlab("Street Ending") + 
+  ylab("Frequency")
+
+# Frequency table street identifiers
+RoadNameFrequency %>%
+  filter(grepl(pattern = "Voter", x = source)) %>%
+  knitr::kable(align = c('c', 'l'), padding = 0)
+
+
+RoadNameFrequency %>%
+  filter(grepl(pattern = "Medicare", x = source)) %>%
+  knitr::kable(align = c('c', 'l'), padding = 0)
+
+```
+
+
+  
+
+
+

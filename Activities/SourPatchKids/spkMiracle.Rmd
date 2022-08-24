@@ -1,0 +1,36 @@
+---
+title: "Sour Patch Miracle"
+output: html_notebook
+---
+
+- Snacking from a large bag of SPK after lunch while looking at phone
+- 14 oz bag (397 grams)
+- Nutrition facts: serving size is 30 grams--approximately 12 pieces 
+- 2 to 6 SPK per draw (variable)
+    - typical draw was 3-5 SPK
+    - min = 2 (rare--maybe 1 in 10 draws) 
+    - max = 6 (very rare--maybe 1 in 20 draws) 
+    - hole in the bag was too small to draw more than 6
+    - Beckman digs for multiple (never draws only 1)
+- favorite flavor SPK is "Redberry" (whatever that is)
+
+- Assumptions: 
+    - colors are well-mixed
+    - colors include {blue, green, yellow, orange, red}
+    - we assume the manufacturer targets the same color proportions for each bag, but the colors themselves do not seem distributed equally within a bag
+    - No peeking while drawing SPK's (i.e., he was looking at his phone, and not in the bag)
+    - He personally ascribes to a "no mining" philosophy for mixture snacks (e.g., multi-flavor candies, trail mix, mixed nuts, etc) so that every draw is well-mixed and similarly enjoyable from beginning to end.
+    
+# Research Questions: 
+
+1. What is a reasonable estimate of the proportion of red Sour Patch Kids in the bag?  Make sure to provide a clear and complete explanation how you arrived at your estimate (and cite any sources).
+
+2. What are the chances?!? 
+    a. What is the probability that any given draw produces ALL red Sour Patch Kids?
+    b. What is the probability that he draws 6 red SPK in a single draw?
+
+3. Simulate at least 1 million draws (more is better). Use `ggplot2` to construct:
+    a. an informative plot clearly showing the **proportion** of red Sour Patch Kids drawn (i.e., 1 red in 3 drawn & 2 red in 6 drawn are different outcomes with the same *proportion* of red)
+    b. an informative plot clearly showing the **number** of red Sour Patch Kids drawn (i.e., 2 red in 3 drawn & 2 red in 6 drawn are same *number* of red drawn)
+
+

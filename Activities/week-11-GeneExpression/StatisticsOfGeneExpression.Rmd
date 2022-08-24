@@ -1,0 +1,303 @@
+---
+title: "Solution: Statistics of Gene Expression"
+author: "Matthew Beckman"
+date: ""
+output: 
+  html_document:
+    fig_height: 4
+    fig_width: 6
+---
+
+
+```{r}
+# front matter
+rm(list = ls())
+
+library(tidyverse)
+library(dcData)
+```
+
+
+
+### Set-Up
+
+```{r}
+data("NCI60")
+data("NCI60cells")
+```
+
+
+### Simple Graphics for Gene Expression
+
+```{r}
+## Inspect raw data
+# head(NCI60)
+# head(NCI60cells)
+
+## Convert NCI60 to narrow & drop "Probe" variable
+Narrow <- 
+  NCI60 %>%
+  tidyr::pivot_longer(cols = -Probe, names_to = "cellLine", values_to = "expression")
+
+## Inspect results
+# head(Narrow)
+
+## select cellLine & tissue from NCI60cells data; the `gsub()` function is used to conform cellLine to match the NCI60 syntax
+CellTypes <- 
+  NCI60cells %>%
+  select(cellLine, tissue) %>%
+  mutate(cellLine = gsub("\\:", ".", as.character(cellLine)))
+
+## Inspect results
+# head(CellTypes)
+
+## reduce data to cases with matching `cellLine` from both tables
+Narrow <- 
+  Narrow %>%
+  inner_join(CellTypes)
+
+## Inspect result
+head(Narrow)
+```
+
+We can now extract the expression of TOP3A for each cell line and calculate the mean expression for each tissue type.
+
+```{r}
+## restrict data to include only the TOP3A probes
+Probe_TOP3A <- 
+  Narrow %>% filter(Probe == "TOP3A")
+
+## calculate mean expression (note: `exp(x)` is syntax for e^x where "e" is Euler's number: approx. 2.718)
+SummaryStats <- 
+  Probe_TOP3A %>%
+  group_by(tissue) %>%
+  summarise(mn_expr = exp(mean(expression, na.rm = TRUE)))
+
+## Inspect the result (reproduce Table 18.8)
+# kable(SummaryStats)
+
+## Bar chart of mean expression of TOP3A (Figure 18.1)
+SummaryStats %>%
+  ggplot(aes(x = tissue, y = mn_expr)) + 
+  geom_bar(stat = "identity") + 
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+## dot plot of mean expression of TOP3A (Figure 18.2)
+Probe_TOP3A %>%
+  ggplot(aes(x = tissue, y = exp(expression))) + 
+  geom_point() + 
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+```
+
+
+##### Critique of Figure 18.1
+
+Some of the shortcomings of Figure 18.1 might include:
+* bars alone may oversimplify the data leading to misinterpretation
+* may be useful to order the bars by height to facilitate tissue comparisons
+* precision of the estimate is not shown
+* too much ink for not much info
+
+##### Improving the graphic
+
+1. Lighten up the color using `alpha = 0.2` or perhaps switch to a dot plot (i.e. Figure 18.2)
+
+2. Reorder the tissue types
+
+3. Show statistical measure of variation
+
+```{r}
+## Calculate mean, standard error, and confidence interval
+SummaryStats <-
+  Probe_TOP3A %>%
+  group_by(tissue) %>%
+  summarise(mn = mean(expression, na.rm = TRUE), 
+            se = sd(expression, na.rm = TRUE) / sqrt( n() )) 
+```
+
+
+4. Show the expression value for each of the individual cases in `MyProbe` (i.e. `TOP3A` here)
+
+5. Use different modality, e.g. dot plot, box plot (`notch = TRUE`), violin plot
+
+##### Reproduce Dot Plot with Confidence Intervals (Figure 18.3)
+
+```{r}
+SummaryStats %>%
+  ggplot(aes(x = tissue, y = exp(mn))) + 
+  geom_bar(stat = "identity", fill = "gray", color = NA) + 
+  geom_point(data = Probe_TOP3A, aes(x = tissue, y = exp(expression))) + 
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+
+```
+
+##### Reproduce "Dynamite Plot" in Figure 18.4
+
+```{r}
+## Calculate mean, standard error, and confidence interval
+SummaryStats <-
+  SummaryStats %>%
+  mutate(top = mn + 2 * se, 
+         bottom = mn - 2 * se)
+
+
+## "Dynamite Plot"
+SummaryStats %>% 
+  ggplot(aes(x = tissue, y = exp(mn))) + 
+  geom_bar(stat = "identity", alpha = 0.2) + 
+  geom_errorbar(aes(x = tissue, 
+                    ymax = exp(top), 
+                    ymin = exp(bottom)), width = 0.5) + 
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+  
+```
+
+
+##### Reproduce Dot Plot with Confidence Intervals (Figure 18.5)
+
+```{r}
+
+SummaryStats %>% 
+  ggplot(aes(x = tissue, y = exp(mn))) + 
+  geom_errorbar(aes(x = tissue, 
+                    ymax = exp(top), 
+                    ymin = exp(bottom)), width = 0.5) + 
+  geom_point(data = Probe_TOP3A, aes(x = tissue, y = exp(expression))) + 
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+
+
+```
+
+
+##### Your Turn: Pick a different probe and replicate Figure 18.5
+
+[varies]
+
+
+### Probing for a Probe
+
+Create a function to calculate R-squared, and apply the function to each `Probe`. 
+
+```{r include=FALSE}
+## Create function to calculate r-squared
+r2 <- function(data) {
+  mosaic::rsquared(lm(data$expression ~ data$tissue))
+}
+
+## apply function to each `Probe` (takes a while because there are a lot of probes)
+ProbeR2 <- 
+  Narrow %>%
+  group_by(Probe) %>%
+  dplyr::do(r2 = r2(.)) %>%
+  mutate(r2 = unlist(r2))
+
+
+```
+
+
+```{r}
+## Order the Probes by R2, and pull out the 30 largest
+Actual <- 
+  ProbeR2 %>%
+  arrange(desc(r2)) %>%
+  head(30) 
+
+## Show as a table
+# kable(Actual)
+
+## Graph probes with top 30 r-squared
+Actual %>%
+  ggplot(aes(x = reorder(Probe, desc(r2)), y = r2)) + 
+  geom_point() + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  xlab("Probe") + 
+  ylab("R-squared") 
+
+
+```
+
+
+### Your Turn: Choose a probe with high r-squared and create a plot like Figure A.10
+
+I chose to investigate probe PLK2 (for no particular reason).  A noteworthy difference between the plot associated with PLK2 and Figure A.10 based on TOP3A, is that there is a much more apparent association between certain tissue types and the probe.  Namely, the probe is much more common among renal tissue by compasion to the other tissue types studied.
+
+```{r}
+
+## I selected Probe PLK2, but any probe from the top 30 is fine.
+Probe_PLK2 <- 
+  Narrow %>% filter(Probe == "PLK2")
+
+## Calculate mean, standard error, and confidence interval
+SummaryStats_PLK2 <-
+  Probe_PLK2 %>%
+  group_by(tissue) %>%
+  summarise(mn = mean(expression, na.rm = TRUE), 
+            se = sd(expression, na.rm = TRUE) / sqrt( n() )) %>%
+  mutate(top = mn + 2 * se, 
+         bottom = mn - 2 * se)
+
+## Reproduce Figure A.10 for Probe PLK2
+SummaryStats_PLK2 %>% 
+  ggplot() + 
+  geom_errorbar(aes(x = tissue, 
+                    ymax = exp(top), 
+                    ymin = exp(bottom)), width = 0.5) + 
+  geom_point(data = Probe_PLK2, aes(x = tissue, y = exp(expression))) + 
+  theme(axis.text.x = element_text(angle = 30, hjust = 1))
+
+```
+
+
+### False Discoveries
+
+Generate a Null distribution in order to observe outcomes that might happen just by chance if in fact there were really no assocation at all between probe and tissue type.  We then compare our observed result to the Null distribution in order to determine whether there is a compelling difference between our result and the sort of outcomes we would expect to observe just by chance if the null hypothesis were true (i.e. if there were no association at all between probe & tissue type).
+
+```{r include=FALSE}
+## Build null distribution by breaking the association between probe and tissue
+NullR2 <- 
+  Narrow %>%
+  group_by(Probe) %>%
+  mutate(expression = mosaic::shuffle(expression)) %>%
+  group_by(Probe) %>%
+  do(r2 = r2(.)) %>%
+  mutate(r2 = unlist(r2))
+
+
+```
+
+
+```{r}
+##  Comparison of null distibution to the R2 observed for the actual data
+ProbeR2 %>%
+  ggplot(aes(x = r2)) + 
+  geom_density(fill = "gray30", color = NA) + 
+  geom_density(data = NullR2, aes(x = r2), 
+               fill = "gray80", alpha = 0.75, color = NA)
+
+```
+
+
+Lastly, we compare the top 30 observed r-squared values with the top 30 values produced in the null distribution.  Since we generated the null distrubtion using random simulations (via `mosaic::shuffle()`), your results need not be identical to the picture in the book.  In fact they may appear slightly different each time you refresh the analysis!  Even still, the conclusion holds that none of the top 30 r-squared values for the actual data lie anywhere near those from the null hypothesis.
+
+```{r}
+Null <- 
+  NullR2 %>%
+  arrange(desc(r2)) %>%
+  head(30)
+
+Actual$null <- Null$r2
+
+Actual %>%
+  ggplot(aes(x = reorder(Probe, desc(r2)), y = r2)) + 
+  geom_point() + 
+  geom_point(aes(y = null), color = "gray50") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + 
+  xlab("Probe") + 
+  ylab("R-squared") 
+
+```
+

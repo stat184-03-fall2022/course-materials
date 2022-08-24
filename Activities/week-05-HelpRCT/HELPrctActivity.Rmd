@@ -1,0 +1,125 @@
+---
+title: "Activity: Data Verbs HELPrct"
+author: "Matthew Beckman"
+date: ""
+output: html_notebook 
+---
+
+
+# Grading
+
+- Assignment is worth a total of 10 points
+- [3 points] Task 1: 
+    - Data description
+    - `summarise()` tasks
+- [5 points] Task 2: 
+    - one point per `group_by()` item 
+- [2 points] Task 3: 
+    - one point for including a useful plot with at least 3 variables represented
+    - one point for including comments
+
+
+# Set Up
+
+```{r}
+# load packages
+library(tidyverse)
+
+# The HELPrct data are available in the mosaicData package
+library(mosaicData)
+
+# Load the HELPrct data set into our RStudio environment
+data("HELPrct")
+
+# Use View(HELPrct) in the console to open a tab in RStudio and look at the raw data directly
+```
+
+
+
+# Task 1: 
+
+### Data Description
+
+[write a couple of sentences describing the `HELPrct` data and the study that collected them. (hint: use the "Help" search bar in RStudio)]
+
+### Basic Summaries
+`summarise()` : Find an expression involving `summarize()` and `HELPrct` that will produce the following.
+
+- number of people (cases) in `HELPrct` study
+- total number of times in the past 6 months entered a detox program (measured at baseline) for all the people in `HELPrct` (silly)
+- mean time (in days) to first use of any substance post-detox for all the people in `HELPrct`
+
+```{r}
+HELPrct %>%
+  summarise( cases = n() )
+
+HELPrct %>%
+  summarise( totalDetoxBaseline = sum(e2b, na.rm = TRUE)) 
+
+HELPrct %>%
+  summarise( avgDaysRelapse = mean(daysanysub, na.rm = TRUE))
+```
+
+
+
+# Task 2:
+`group_by()` : repeat task 1 above, but calculating the results group-by-group for:
+
+- males versus females
+- homeless or not
+- substance
+- break down the homeless versus housed further, by sex
+- break down the homeless versus housed further, by substance
+
+### males versus females
+```{r}
+HELPrct %>%
+  group_by(sex) %>%
+  summarise( cases = n(),
+             totalDetoxBaseline = sum(e2b, na.rm = TRUE),
+             avgDaysRelapse = mean(daysanysub, na.rm = TRUE))
+```
+
+### homeless or not
+```{r}
+HELPrct %>%
+  group_by(homeless) %>%
+  summarise( cases = n(),
+             totalDetoxBaseline = sum(e2b, na.rm = TRUE),
+             avgDaysRelapse = mean(daysanysub, na.rm = TRUE))
+```
+
+
+### substance
+```{r}
+HELPrct %>%
+  group_by(substance) %>%
+  summarise( cases = n(),
+             totalDetoxBaseline = sum(e2b, na.rm = TRUE),
+             avgDaysRelapse = mean(daysanysub, na.rm = TRUE))
+```
+
+### homeless versus housed broken down by sex
+```{r}
+HELPrct %>%
+  group_by(homeless, sex) %>%
+  summarise( cases = n(),
+             totalDetoxBaseline = sum(e2b, na.rm = TRUE),
+             avgDaysRelapse = mean(daysanysub, na.rm = TRUE))
+```
+
+### homeless versus housed broken down by substance
+```{r}
+HELPrct %>%
+  group_by(homeless, substance) %>%
+  summarise( cases = n(),
+             totalDetoxBaseline = sum(e2b, na.rm = TRUE),
+             avgDaysRelapse = mean(daysanysub, na.rm = TRUE))
+```
+
+# Task 3:
+
+Include one or more interesting plots of the data involving at least 3 variables per plot. Write a few sentances to explain the story that your plot tells about these data.  You can use one of the relationships that you studied in Task 2, or you can explore a different group of variables in the HELPrct that show something interesting.  
+
+* Plots vary
+* Almost any plot that you want to post here would be fine as long as it involves at least 3 variables.

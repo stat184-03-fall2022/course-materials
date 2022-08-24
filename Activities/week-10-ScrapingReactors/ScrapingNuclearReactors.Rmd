@@ -1,0 +1,226 @@
+---
+title: "Activity: Scraping Nuclear Reactors"
+author: "Matthew Beckman"
+date: ""
+output: 
+  html_notebook:
+    fig_height: 6
+    fig_width: 10
+---
+
+
+### Set-Up
+
+```{r}
+rm(list = ls())
+library(rvest)
+library(lubridate)
+library(tidyverse)
+
+```
+
+
+### Nuclear Reactor Data
+
+The Nuclear Reactor Data are scraped from Wikipedia: <https://en.wikipedia.org/wiki/List_of_nuclear_reactors>
+
+
+### Locate & Inspect Japan Reactor Data
+
+While scraping all tables on the page, R reports a "subscript out of bounds" error.  We instead locate the Japan table directly, and then scrape it (this seems like the more direct way to scrape a single table anyway).  If you want to scrape all tables, you can fix the provided code using `XPATH <- '//*[@id="mw-content-text"]/div/table'` (note the addition of "/div").
+
+```{r}
+page <- "https://en.wikipedia.org/wiki/List_of_nuclear_reactors"
+
+table_list <- 
+  page %>%
+  read_html() %>%
+  html_nodes(css = "table") %>%
+  html_table(fill = TRUE)
+
+# extract the data table from the "list" object; This step is needed even if the list only has 
+#    one data table in it (i.e. if you scraped Japan only)
+Japan <- table_list[[22]]  # The Japan table is element 22 in the `table_list` object
+
+# Inspect data table 
+str(Japan)
+head(Japan)
+```
+
+### Your Turn: Data Cleaning
+
+In what ways is the data table tidy?  
+
+* each column is a variable
+* rows are mostly cases (not quite tidy, but close)
+
+In what ways is the data table NOT tidy?  
+
+* first row is a continuation of variable names (not a case)
+* DataComputing text alleges missing columns, but I didn't have that issue...
+
+##### Cleaning Up Variable Names
+
+```{r}
+# rename variables 4 & 7 to avoid name duplication
+names(Japan)[c(4, 7)] <- c("model", "grossMW")
+
+# Inspect result
+head(Japan)
+
+# cleaning up the Japan Data
+Japan <- 
+  Japan %>%
+  filter(row_number() > 1) %>%      # drop the first row in the table (continuation of names)
+  rename(name = Name, reactor = `UnitNo.`,    # Note the use of back-ticks (`) for names with spaces 
+         type = Reactor, status = Status, 
+         netMW = `Capacity in MW`, 
+         construction = `Construction start`, 
+         operation = `Commercial operation`, closure = Closure)
+
+head(Japan)
+```
+
+##### Cleaning Up Variable Formats
+
+From `str()` we can see that everything is treated as character strings (even numeric and date variables).
+
+```{r}
+str(Japan)
+```
+
+Let's convert each variable to the most appropriate type using `mutate()`.  Notice the warning "Warning: 8 failed to parse".  Can you spot from the original data table which values may have caused the warning and why R may have failed to reformat them?  (Hint: look at the closure dates).  It's important to pay attention to warnings and understand where they come from!
+
+```{r}
+Japan <- 
+  Japan %>%
+  mutate(netMW = as.numeric(netMW), grossMW = as.numeric(grossMW)) %>%   
+  mutate(construction = dmy(construction), operation = dmy(operation), closure = dmy(closure))  
+
+# Inspect Result
+head(Japan)
+  
+```
+
+### Your Turn: Plot Net Generation Capacity vs Construction Date
+
+This sounds like a job for `ggplot()`.  Notice the warning again... do you see where that one comes from?  Here are a few possible observations from the graph:
+
+* most reactors are either type "PWR" (pressurized water reactor) or "BWR" (boiling water reactor)
+* there is a slight positive trend indicating that perhaps reactors constructed more recently have greater net generation capacity
+* type "PWR" reactors may appear to be associated with slightly greater net generation capacity than "BWR" reactors constructed near the same time
+
+```{r}
+Japan %>% 
+  ggplot(aes(y = netMW, x = construction)) + 
+  geom_point(aes(color = type))
+```
+
+
+### Your Turn: Scrape & Merge China Data
+
+##### Scrape (& Clean)
+
+Since you're doing the same steps as before, you should use copy and paste liberally and just make small changes to adapt the code to the China data.  No need to re-type the whole thing!  You may get a few warnings again (at least I did), can you track down the problem cases in the original table?  
+
+```{r, eval=FALSE}
+### You can directly scrape China (and only China) if you want...
+
+# same webpage as before
+page <- "https://en.wikipedia.org/wiki/List_of_nuclear_reactors"
+
+# new xpath (we need the China table)
+XPATH <- '//*[@id="mw-content-text"]/div/table[11]'
+
+table_list <- 
+  page %>%
+  read_html() %>%
+  html_nodes(xpath = XPATH) %>%
+  html_table(fill = TRUE)
+
+# extract the data table from the "list" (even though the list only has one data table in it)
+China <- table_list[[1]]
+
+# Inspect data table 
+str(China)
+head(China)
+
+```
+
+```{r}
+# extract the China data table from the "list" 
+China <- table_list[[10]]
+
+# Inspect data table 
+str(China)
+head(China)
+
+```
+
+
+```{r}
+# create unique names for variables 4 & 7
+names(China)[c(4, 7)] <- c("model", "grossMW")
+
+# cleaning up the China Data (almost identical to Japan cleaning)
+China <- 
+  China %>%
+  filter(row_number() > 1) %>%      
+  rename(name = Name, 
+         reactor = UnitNo.,  
+         type = Reactor, 
+         status = Status, 
+         netMW = `Capacity in MW`,            # backticks because of white space
+         construction = `Construction start`, 
+         operation = `Commercial operation`, 
+         closure = Closure) %>%
+  mutate(netMW = as.numeric(netMW), grossMW = as.numeric(grossMW)) %>%   
+  mutate(construction = dmy(construction), operation = dmy(operation))  
+
+head(China, 10)
+```
+
+
+##### Merging China and Japan
+
+```{r}
+Japan <- 
+  Japan %>%
+  mutate(country = "Japan") # make a new variable called "country" for Japan data
+
+China <- 
+  China %>%
+  mutate(closure = ymd(closure),  # convert this variable to a date format for China data
+         country = "China") # make a new variable called "country" for China data
+
+# Inspect the results; make sure columns match
+head(Japan)
+head(China)
+
+# DC textbook method to combine them together 
+China_Japan <- bind_rows(China, Japan)
+
+# a better function to combine Japan & China together (see help for syntax) 
+China_Japan <- merge(x = Japan, y = China, all.x = TRUE, all.y = TRUE)
+
+
+# Inspect Results
+str(China_Japan)   # structure
+head(China_Japan)  # first rows
+tail(China_Japan)  # last rows
+```
+
+
+### Your Turn: Make Info Graphic of Japan Reactors
+
+```{r fig.height=12, fig.width=9}
+Japan %>%
+  mutate(name_reactor = paste(name, reactor)) %>% 
+  mutate(status_change = !is.na(status)) %>%      # indicator variable for status_change of any kind
+  ggplot(aes(y = name_reactor, x = operation, size = 4)) + 
+  geom_segment(aes(y = name_reactor, yend = name_reactor, x = construction, xend = operation, color = type)) + 
+  geom_point(aes(y = name_reactor, x = closure, shape = status_change))
+
+```
+
+

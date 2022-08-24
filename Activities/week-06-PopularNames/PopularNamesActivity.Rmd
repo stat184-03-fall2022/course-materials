@@ -1,0 +1,143 @@
+---
+title: "Activity: Popular Names"
+author: "Matthew Beckman"
+date: "September 26, 2018"
+output: html_notebook
+---
+
+
+# Grading
+
+Assignment is worth a total of 10 points
+
+* [1 point] Turn in HTML with embedded .Rmd file (e.g. "DataComputing simple" template)
+* [1 point] Step 1: show how you used summary functions to explore the raw data set
+* [0.5 points] Step 3: attempt to answer all questions about the data
+* [0.5 points] Step 4: attempt to answer all questions about the data
+* [1 points] Step 5: explaination of data wrangling steps in English (not code)
+* [3 points] Step 7: Data wrangling
+    * correct use of `filter()`
+    * correct use of `group_by()`
+    * correct use of `summarise()`
+* [3 points] `ggplot()` graph of first names for those in your group 
+
+
+
+# Set Up
+
+```{r}
+# load necessary packages
+library(tidyverse)
+library(mosaic)
+library(DataComputing)
+```
+
+
+```{r}
+# Load the BabyNames data into RStudio environment (from DataComputing package)
+data("BabyNames")
+
+```
+
+# Activity
+
+**Goal**: By the end of the activity, each team will create a graph (like Figure A.1 on p 159) showing ups and downs in the popularity of the names at your table according to the U.S. social security registry.  
+
+
+### Step 1
+
+It looks like the available variables are `name`, `sex`, `count`, `year` and cases are names within each year for each gender (1880 females named "Pat" and 1880 males named "Pat" would be seperate rows).
+
+```{r}
+## Helpful to look at the data a few different ways (see Ch 9 for more).
+
+# Variable Names
+names(BabyNames)
+
+# Here's the structure of the data set
+str(BabyNames)
+
+# Here are the first few rows
+head(BabyNames)
+
+
+```
+
+### Step 2
+
+[This should be done by hand on paper, nothing to show in the HTML doc]
+
+
+### Step 3 
+
+##### What variable(s) from the raw data table do not appear at all in the graph?
+
+`sex` appears in the raw data table, but does not appear at all in the graph.
+
+##### What variable(s) in the graph are similar to corresponding variables in the raw data table, but might have been transformed in some way?
+
+`count` now summarizes the total count for a name within a year (regardless of sex)
+
+
+### Step 4
+
+##### Have cases been filtered out?
+The data set is filtered so only cases for which the `name` variable matches the names of those in my group are included.
+
+##### Have cases been grouped and summarized within groups in any way?
+Cases are now popularity (i.e. total count) grouped by `name` and `year`.
+
+##### Have any new variables been introduced?  If so, what the relationship between the new variables and existing variables?
+A new variable `total` represents the total of `count` for each name within each year.
+
+### Step 5
+
+Using the BabyNames data set, filter the data to the names in my group {Matthew, Sarah, Eden, Jack}.  Then group the cases by year and name, and count how many total births per year were recorded for each of the names.  
+
+### Step 6
+
+[This should be done by hand on paper, nothing to show in the HTML doc]
+
+### Step 7
+
+```{r}
+BeckmanNames <- 
+  BabyNames %>%
+  filter(name %in% c("Matthew", "Sarah", "Eden", "Jack", "Hazel")) %>%
+  group_by(name, year) %>%
+  summarise(total = sum(count, na.rm = TRUE))
+
+# inspect the result
+BeckmanNames %>%
+  head(6)
+```
+
+
+### Graph It!
+
+Here's the sample code provided by the book:
+
+```
+GlyphReadyForm %>%
+  ggplot(aes(x = year, y = total, group = name)) + 
+  geom_line(size = 1, alpha = 0.5, aes(color = name)) + 
+  ylab("Popularity") + xlab("Year")
+```
+
+If I use the `scatterGraphHelper()` function in the console, I can get the following expression and produce the plot below.  It's close, but I don't think `scatterGraphHelper()` allows me to produce the line plot that we really want.
+
+```{r}
+ggplot(data=BeckmanNames,aes(x=year,y=total))+geom_point()+aes(colour=name) 
+```
+
+
+If I use the recommended `ggplot()` command provided by the textbook I get something the following.  If you look closely at the two commands, you'll see a number of similarities in the syntax.  It's always a good idea to study code examples that work in order to see what you can use now or in the future.  For example, you might learn from the command in the text how to apply custom labels to your axes!
+
+```{r}
+BeckmanNames %>%
+  ggplot(aes(x = year, y = total, group = name)) + 
+  geom_line(size = 1, alpha = 0.5, aes(color = name)) + 
+  ylab("Popularity") + xlab("Year")
+```
+
+Note: if someone in your group has a name that hasn't been registered with the US Social Security Administration for a baby born in the United States, it's okay that his/her name may not appear on the plot.  

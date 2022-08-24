@@ -1,0 +1,62 @@
+---
+title: "Markdown Class Schedule"
+author: "Matthew Beckman"
+date: "September 5, 2018"
+output: 
+  html_notebook:
+    fig_height: 3
+    fig_width: 5
+---
+
+
+# Grading (Yours doesn't need this part)
+
+
+Assigment is worth a total of 10 points
+
+* [4 points] Turn in HTML document
+* [1 points] embedded .Rmd file (e.g. "DataComputing simple" template or R Notebook)
+* [1 point] Level 3 heading for each class (0.5 point if some classes have heading other than level 3)
+* [1 point] Two sentances about why you're taking the class (0.5 point if some classes don't include any narrative)
+* [1 point] links to the course webpage or Canvas site (0.5 point if one or two classes are missing a functional webpage or Canvas link)  
+* [1 point] links to a relevant Wikipedia (or other) article (0.5 point if some classes are missing a functional article link)    
+* [1 point] embed a relevant figure (0.5 point if one or more classes are missing an embedded link)  
+* Note: I didn't use the template or R Notebooks (i.e. embed Rmd) for mine so I could post it ahead of time without giving away the entire assignment.
+
+
+# Class Schedule (Complete Example)
+
+### PSU 016: First-Year Seminar
+
+This class is a chance for first-year students to get acclamated to college life.  Each department at Penn State has their own section(s) of PSU 016, so students can take the class with other first-year students in their major.  I really enjoy teaching the first-year seminar because it's a great opportunity to me to get to know the new class of Statistics Majors!  We more or less have a parade of speakers from around Penn State come and visit each week in order to tell us about some of the tools and resources available to them here at Penn State.
+
+The PSU Canvas page is [linked here](https://psu.instructure.com/courses/1853967).
+
+For some reason I admit that I was a little surprised to find a Wikipedia page about first-year seminar classes at American Universities, but  [here's the link](https://en.wikipedia.org/wiki/The_First_Year_Experience_Program)!  The page doesn't currently have a picture, so a picture of Old Main seems as relevant as any other.
+
+![](http://www.amesphotos.com/psu/old_main_penn_state.jpg)
+
+### STAT 470W: Problem Solving and Communication in Applied Statistics
+
+This is the capstone course for the undergraduate statistics major at Penn State, and also fulfills a writing requirement for the major (hence, the "W").  As a capstone, students should generally take this course in their last semester before graduation.  Ideally, a capstone would minimize introduction of new content, but rather serve as an opportunity for synthesis of content learned elsewhere in the major.  A majority of the course focuses on opportunities to work through real (or realistic) case studies to help students practice critical thinking, problem solving, and technical skills needed to face ill-structured tasks they are likely to encounter on the job.  
+
+The PSU Canvas page is [linked here](https://psu.instructure.com/courses/1864367).
+
+Check out <http://thisisstatistics.org/> to find out more about what Statisticians do in the real world!
+
+![](UncleSam_image2.png)
+
+
+
+### STAT 184: Introduction to R Programmaing
+
+This course was developed and delivered for the first time in Fall 2016.  Many things about the class are admittedly quite experimental (the room we're in, the book we use, almost exclusive use of chain syntax, and even the idea of an R course with no course prerequisites), but it's actually quite cutting edge for Penn State to even have a class like this so I feel fortunate to be a part of it.  
+
+The course website is <https://mdbeckman.github.io/PSU-STAT-184/>.  
+
+You can learn more about the R programming language from this [Wikipedia page](https://en.wikipedia.org/wiki/R_(programming_language)), or <https://www.r-project.org/>.  R and Python seem to be among the most popular tools for Data Science.  Here's a pretty interesting info-graphic comparing the two.  I put it last because it's so long, but I think it's interesting... spoiler alert: they're both great.
+
+![](RvsPython.png)
+
+
+

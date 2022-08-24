@@ -1,0 +1,82 @@
+---
+title: "Activity: Graph Replication"
+author: "Matthew Beckman"
+date: ""
+output: 
+  html_document:
+    fig_height: 3
+    fig_width: 5
+---
+
+```{r}
+# libraries
+library(tidyverse)
+library(DataComputing)
+library(mosaicData)
+```
+
+
+# Grading
+
+Assignment is worth a total of 10 points:
+
+- [3 points] Problem 5.3 graph replication  
+- [3 points] Problem 5.4 graph replication   
+- Exploration of `diamonds` data  
+    - [1 point] `ggplot2` expression that successfully produces a graphical display of the `diamonds` data.  
+    - [1 point] graphic must display at least 3 variables from the `diamonds` data.  
+    - [2 points] written narrative describing something learned/observed about the `diamonds` data using your graphic.  
+
+# Activity
+
+Reproduce plots for Problem 5.3 & Problem 5.4 in the Data Computing Text.
+
+
+###  Problem 5.3
+
+The "yes" and "no" in the gray bars refer to whether or not the person is pregnant.
+
+
+```{r}
+# Note: I've added some spacing to make it a little easier to read the function
+ ggplot(data = NCHS, aes(x = bmi)) + 
+  geom_density(adjust = 0.4) + 
+  aes(colour = sex) + 
+  facet_wrap( ~ pregnant, ncol = 4) + 
+  labs(title = "") + 
+  theme(legend.position = "right") 
+```
+
+
+
+
+###  Problem 5.4
+```{r}
+# Note: I've added some spacing to make it a little easier to read the function
+ggplot(data = CPS85, aes(x = exper, y = wage)) + 
+  geom_point() + 
+  aes(colour = married) + 
+  scale_x_log10() + 
+  scale_y_log10() + 
+  facet_wrap( ~ sector, ncol = 4)
+```
+
+
+
+### Your Turn: explore the `diamonds` data
+
+*Task: Produce an interesting graphic of the `diamonds` data set.  The graphic should represent AT LEAST 3 variables.  Write a few sentences to describe what you have learned.*
+
+```{r}
+data("diamonds")
+
+```
+
+
+
+
+### Optional Extension: programming style
+
+The helper functions are great, but they produce ugly code.  Clean up the `ggplot2` code that reproduces the required plots so that it aligns with the R Programming Style Guide Appendix in the *DataComputing* eBook <https://dtkaplan.github.io/DataComputingEbook/>.  
+
+
